@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.1"
+  required_version = ">= 1.9"
 
   required_providers {
     azurerm = {
@@ -9,10 +9,5 @@ terraform {
 }
 
 provider "azurerm" {
-
-  features {
-    key_vault {
-      purge_soft_delete_on_destroy = true
-    }
-  }
+  features { }
 }

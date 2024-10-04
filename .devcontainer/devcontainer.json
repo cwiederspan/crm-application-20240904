@@ -34,7 +34,8 @@
 				"ms-dotnettools.csharp",
 				"ms-mssql.mssql",
 				"GitHub.copilot-chat",
-				"ms-dotnettools.csdevkit"
+				"ms-dotnettools.csdevkit",
+				"ms-azuretools.vscode-azureappservice"
 			]
 		}
 	},
