@@ -1,7 +1,7 @@
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "kv" {
-  name                = "${var.base_name}-kv"
+  name                = substr("kv-${var.base_name}", 0, 24)
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 
@@ -25,11 +25,19 @@ resource "azurerm_role_assignment" "kv_user_role" {
   principal_id         = azurerm_user_assigned_identity.user_identity.principal_id
 }
 
+# Add a delay to allow the Key Vault permissions to propogate before adding secrets
+resource "time_sleep" "delay" {
+  depends_on = [ azurerm_role_assignment.kv_admin_role ]
+  create_duration = "30s"
+}
+
 # Add a dummy secret for testing purposes
 resource "azurerm_key_vault_secret" "secret" {
   key_vault_id = azurerm_key_vault.kv.id
   name = "TestSecret"
   value = "Top Secret Value!"
+
+  depends_on = [ time_sleep.delay ]
 }
 
 output "key_vault_uri" {

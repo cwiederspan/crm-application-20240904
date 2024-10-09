@@ -4,8 +4,8 @@ resource "azurerm_cdn_frontdoor_origin" "origin01_01" {
   enabled                        = true
   certificate_name_check_enabled = true
 
-  host_name          = azurerm_windows_web_app.app01.default_hostname # Should be => "crm-v1-l3-app001-01-app.azurewebsites.net"
-  origin_host_header = azurerm_windows_web_app.app01.default_hostname # Should be => "crm-v1-l3-app001-01-app.azurewebsites.net"
+  host_name          = module.app01.default_hostname
+  origin_host_header = module.app01.default_hostname
   http_port          = 80
   https_port         = 443
   priority           = 1

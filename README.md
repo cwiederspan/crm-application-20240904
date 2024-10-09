@@ -29,7 +29,7 @@ terraform init
 
 # Apply the Terraform
 terraform apply \
--var "base_name=crm-v1-l1-globalcore" \
+-var "base_name=$BASE_NAME_PREFIX-l1-globalcore" \
 -var "location=$LOCATION"
 
 # Log output variables
@@ -50,7 +50,7 @@ terraform init
 
 # Apply the Terraform
 terraform apply \
--var "base_name=crm-v1-l2-appcore" \
+-var "base_name=$BASE_NAME_PREFIX-l2-appcore" \
 -var "location=$LOCATION"
 
 # Log output variables
@@ -83,7 +83,7 @@ USER_ID=$(terraform output -state=../../layer2-product_platform/terraform.tfstat
 
 # Apply the Terraform
 terraform apply \
--var "base_name=crm-v1-l3-app001" \
+-var "base_name=$BASE_NAME_PREFIX-l3-app001" \
 -var "location=$LOCATION" \
 -var "outbound_subnet_id=$SUBNET_ID" \
 -var "user_managed_identity=$USER_ID" \

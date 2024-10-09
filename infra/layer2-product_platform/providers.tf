@@ -5,6 +5,10 @@ terraform {
     azurerm = {
       version = "~> 4.0"
     }
+    time = {
+      source = "hashicorp/time"
+      version = "0.12.1"
+    }
   }
 }
 
@@ -15,4 +19,8 @@ provider "azurerm" {
       purge_soft_delete_on_destroy = true
     }
   }
+}
+
+provider "time" {
+  # Configuration options
 }
