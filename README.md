@@ -49,14 +49,10 @@ cd infra/layer2-product_platform/
 # Uses local storage for state
 terraform init
 
-# Check the variables from the previous runs
-DB_SUBNET_ID=$(terraform output -state=../layer1-global_infrastructure/terraform.tfstate -json | jq -r '.database_subnet_id.value')
-
 # Apply the Terraform
 terraform apply \
 -var "base_name=$BASE_NAME_PREFIX-l2-appcore" \
--var "location=$LOCATION" \
--var "database_subnet_id=$DB_SUBNET_ID"
+-var "location=$LOCATION"
 
 # Log output variables
 key_vault_uri
@@ -69,6 +65,28 @@ user_managed_identity_id
 ## Layer 3: Application
 
 This layer is used to create specific application resources like VMs, app plans and services, storage accounts, etc.
+
+### Sample Application Database 001
+
+```bash
+
+cd infra/layer3-application/app001-database/
+
+# Uses local storage for state
+terraform init
+
+# Check the variables from the previous runs
+DB_SUBNET_ID=$(terraform output -state=../../layer1-global_infrastructure/terraform.tfstate -json | jq -r '.database_subnet_id.value')
+
+# Apply the Terraform
+terraform apply \
+-var "base_name=$BASE_NAME_PREFIX-l3-app001-database" \
+-var "location=$LOCATION" \
+-var "database_subnet_id=$DB_SUBNET_ID" \
+# -var "user_managed_identity=$USER_ID" \
+# -var "key_vault_uri=$KV_URI" 
+
+```
 
 ### Sample Application 001
 

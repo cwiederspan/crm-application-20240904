@@ -8,11 +8,6 @@ variable "location" {
   description = "The Azure region where the resources will be created."
 }
 
-variable "database_subnet_id" {
-  type        = string
-  description = "The id of the subnet that the database servers will use to communicate with other services."
-}
-
 resource "azurerm_resource_group" "rg" {
   name     = var.base_name
   location = var.location
