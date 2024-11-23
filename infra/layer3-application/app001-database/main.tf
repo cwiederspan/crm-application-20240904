@@ -115,7 +115,15 @@ resource "azurerm_virtual_machine_data_disk_attachment" "log_disk_attachments" {
   caching            = "None"
 }
 
+resource "azurerm_virtual_machine_extension" "sql" {
+  name                 = "SQLIaasExtension"
+  virtual_machine_id   = azurerm_windows_virtual_machine.vm.id
+  publisher            = "Microsoft.SqlServer.Management"
+  type                 = "SqlIaaSAgent"
+  type_handler_version = "2.0"
 
+  auto_upgrade_minor_version = true
+}
 
 
 # Data Disks
