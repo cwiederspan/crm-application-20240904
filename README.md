@@ -34,6 +34,7 @@ terraform apply \
 
 # Log output variables
 app_outbound_subnet_id
+database_subnet_id
 
 ```
 
@@ -48,10 +49,14 @@ cd infra/layer2-product_platform/
 # Uses local storage for state
 terraform init
 
+# Check the variables from the previous runs
+DB_SUBNET_ID=$(terraform output -state=../layer1-global_infrastructure/terraform.tfstate -json | jq -r '.database_subnet_id.value')
+
 # Apply the Terraform
 terraform apply \
 -var "base_name=$BASE_NAME_PREFIX-l2-appcore" \
--var "location=$LOCATION"
+-var "location=$LOCATION" \
+-var "database_subnet_id=$DB_SUBNET_ID"
 
 # Log output variables
 key_vault_uri
@@ -75,7 +80,7 @@ cd infra/layer3-application/app001/
 terraform init
 
 # Check the variables from the previous runs
-SUBNET_ID=$(terraform output -state=../../layer1-global_infrastructure/terraform.tfstate -json | jq -r '.app_outbound_subnet_id.value')
+APP_OUTBOUND_SUBNET_ID=$(terraform output -state=../../layer1-global_infrastructure/terraform.tfstate -json | jq -r '.app_outbound_subnet_id.value')
 KV_URI=$(terraform output -state=../../layer2-product_platform/terraform.tfstate -json | jq -r '.key_vault_uri.value')
 AFD_DOG_ID=$(terraform output -state=../../layer2-product_platform/terraform.tfstate -json | jq -r '.afd_default_origin_group_id.value')
 AFD_ENDPOINT_ID=$(terraform output -state=../../layer2-product_platform/terraform.tfstate -json | jq -r '.afd_endpoint_id.value')
@@ -85,7 +90,7 @@ USER_ID=$(terraform output -state=../../layer2-product_platform/terraform.tfstat
 terraform apply \
 -var "base_name=$BASE_NAME_PREFIX-l3-app001" \
 -var "location=$LOCATION" \
--var "outbound_subnet_id=$SUBNET_ID" \
+-var "outbound_subnet_id=$APP_OUTBOUND_SUBNET_ID" \
 -var "user_managed_identity=$USER_ID" \
 -var "key_vault_uri=$KV_URI" \
 -var "afd_endpoint_id=$AFD_ENDPOINT_ID" \

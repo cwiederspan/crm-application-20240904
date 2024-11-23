@@ -32,6 +32,13 @@ resource "azurerm_subnet" "default" {
   address_prefixes     = ["10.0.0.0/24"]
 }
 
+resource "azurerm_subnet" "database" {
+  name                 = "database"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.5.0/24"]
+}
+
 resource "azurerm_subnet" "appOutbound" {
   name                 = "app-outbound"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -51,4 +58,8 @@ resource "azurerm_subnet" "appOutbound" {
 
 output "app_outbound_subnet_id" {
   value = azurerm_subnet.appOutbound.id
+}
+
+output "database_subnet_id" {
+  value = azurerm_subnet.database.id
 }
