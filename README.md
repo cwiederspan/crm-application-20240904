@@ -83,6 +83,21 @@ terraform apply \
 -var "base_name=$BASE_NAME_PREFIX-l3-app001-database" \
 -var "location=$LOCATION" \
 -var "database_subnet_id=$DB_SUBNET_ID" \
+-var "vm_admin_username=$VM_ADMIN_USERNAME" \
+-var "vm_admin_password=$VM_ADMIN_PASSWORD" \
+-var "sql_admin_username=$SQL_ADMIN_USERNAME" \
+-var "sql_admin_password=$SQL_ADMIN_PASSWORD" \
+-var "availability_zone_id=2" \
+-var "data_disk_count=3" \
+-var "data_disk_size_gb=1024" \
+-var "data_disk_iops=3500" \
+-var "data_disk_throughput=135" \
+-var "logs_disk_count=2" \
+-var "logs_disk_size_gb=1024" \
+-var "logs_disk_iops=5000" \
+-var "logs_disk_throughput=150"
+
+
 # -var "user_managed_identity=$USER_ID" \
 # -var "key_vault_uri=$KV_URI" 
 
