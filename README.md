@@ -58,6 +58,7 @@ terraform apply \
 key_vault_uri
 afd_default_origin_group_id
 afd_endpoint_id
+log_analytics_workspace_id
 user_managed_identity_id
 
 ```
@@ -77,12 +78,14 @@ terraform init
 
 # Check the variables from the previous runs
 DB_SUBNET_ID=$(terraform output -state=../../layer1-global_infrastructure/terraform.tfstate -json | jq -r '.database_subnet_id.value')
+LOG_ANALYTICS_WORKSPACE_ID=$(terraform output -state=../../layer2-product_platform/terraform.tfstate -json | jq -r '.log_analytics_workspace_id.value')
 
 # Apply the Terraform
 terraform apply \
 -var "base_name=$BASE_NAME_PREFIX-l3-app001-database" \
 -var "location=$LOCATION" \
 -var "database_subnet_id=$DB_SUBNET_ID" \
+-var "log_analytics_workspace_id=$LOG_ANALYTICS_WORKSPACE_ID" \
 -var "vm_admin_username=$VM_ADMIN_USERNAME" \
 -var "vm_admin_password=$VM_ADMIN_PASSWORD" \
 -var "sql_admin_username=$SQL_ADMIN_USERNAME" \

@@ -24,6 +24,10 @@ resource "azurerm_user_assigned_identity" "user_identity" {
   location            = azurerm_resource_group.rg.location
 }
 
+output "log_analytics_workspace_id" {
+  value = azurerm_log_analytics_workspace.workspace.id
+}
+
 output "user_managed_identity_id" {
   value = azurerm_user_assigned_identity.user_identity.id
 }

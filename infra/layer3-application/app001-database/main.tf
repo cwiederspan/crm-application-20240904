@@ -13,6 +13,11 @@ variable "database_subnet_id" {
   description = "The id of the subnet that the database servers will use to communicate with other services."
 }
 
+variable "log_analytics_workspace_id" {
+  type        = string
+  description = "The id of the Azure Monitor's Log Analytics workspace that will be used for logging and metrics."
+}
+
 variable "availability_zone_id" {
   type = string
   description = "The availability zone to deploy into (required by Premium SSD v2 disks)."
@@ -88,6 +93,8 @@ variable "logs_disk_throughput" {
 #   description = "The URI to the key vault where app service secretes are stored."
 # }
 
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "rg" {
   name     = var.base_name
   location = var.location
@@ -122,7 +129,8 @@ resource "azurerm_windows_virtual_machine" "vm" {
   zone                  = var.availability_zone_id
   disk_controller_type  = "NVMe"
   license_type          = "Windows_Server"
-
+  secure_boot_enabled   = true
+  
   source_image_reference {
     publisher = "microsoftsqlserver"
     offer     = "sql2022-ws2022"
@@ -135,6 +143,21 @@ resource "azurerm_windows_virtual_machine" "vm" {
     storage_account_type      = "Premium_LRS"
     # write_accelerator_enabled = true
   }
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+resource "azurerm_virtual_machine_extension" "monitor_agent" {
+  name                 = "AzureMonitorWindowsAgent"
+  virtual_machine_id   = azurerm_windows_virtual_machine.vm.id
+  publisher            = "Microsoft.Azure.Monitor"
+  type                 = "AzureMonitorWindowsAgent"
+  type_handler_version = "1.0"
+
+  auto_upgrade_minor_version = true
+  automatic_upgrade_enabled  = true
 }
 
 resource "azurerm_managed_disk" "data_disks" {
@@ -142,6 +165,7 @@ resource "azurerm_managed_disk" "data_disks" {
   name                 = "${var.base_name}-sqlvm-data-disk-${count.index + 1}"
   location             = azurerm_resource_group.rg.location
   resource_group_name  = azurerm_resource_group.rg.name
+
   storage_account_type = "PremiumV2_LRS"
   create_option        = "Empty"
   zone                 = var.availability_zone_id
@@ -167,6 +191,7 @@ resource "azurerm_managed_disk" "logs_disks" {
   name                 = "${var.base_name}-sqlvm-logs-disk-${count.index + 1}"
   location             = azurerm_resource_group.rg.location
   resource_group_name  = azurerm_resource_group.rg.name
+
   storage_account_type = "PremiumV2_LRS"
   create_option        = "Empty"
   zone                 = var.availability_zone_id
@@ -201,14 +226,22 @@ resource "azurerm_mssql_virtual_machine" "sqlvm" {
     maintenance_window_starting_hour       = 2
   }
 
+  # key_vault_credential {
+  #   name = "sqlvm-credential"
+  #   key_vault_url = azurerm_key_vault.kv.vault_uri
+  #   service_principal_name = azurerm_service_principal.sp.name
+  #   service_principal_secret = azurerm_service_principal.sp.password
+  # }
+
   assessment {
     enabled         = true
-    run_immediately = true
+    run_immediately = false # true
   
     schedule {
-      day_of_week = "Monday"
-      weekly_interval = 1
-      start_time = "01:00"
+      day_of_week        = "Monday"
+      # monthly_occurrence = 0
+      weekly_interval    = 1
+      start_time         = "01:00"
     }
   }
 
@@ -245,40 +278,114 @@ resource "azurerm_mssql_virtual_machine" "sqlvm" {
   }
 }
 
-# resource "azapi_resource" "data_disks" {
-#   count     = var.data_disk_count
-#   type      = "Microsoft.Compute/disks@2024-03-02"
-#   name      = "${var.base_name}-sqlvm-data-disk-${count.index + 1}"
-#   location  = azurerm_resource_group.rg.location
-#   parent_id = azurerm_resource_group.rg.name
+resource "azurerm_log_analytics_workspace" "workspace" {
+  name                = "${var.base_name}-wksp"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
 
-#   body = jsonencode({
-#     sku = {
-#       name = "PremiumV2_LRS"
-#     }
-#     zones = [ var.availability_zone_id ]
-#     properties = {
-#       burstingEnabled = true
-#       creationData = {
-#         createOption = "Empty"
-#         # logicalSectorSize = int
-#         performancePlus = true
-#       }
-#       diskIOPSReadWrite = var.data_disk_iops
-#       diskMBpsReadWrite = var.data_disk_throughput
-#       diskSizeGB = var.data_disk_size_gb
-#       # maxShares = int
-#       # networkAccessPolicy = "string"
-#       osType = "Windows"
-#       publicNetworkAccess = "string"
-#       # supportsHibernation = bool
-#       tier = "string"
+resource "azurerm_log_analytics_workspace_table" "sqlbpa" {
+  workspace_id            = azurerm_log_analytics_workspace.workspace.id
+  name                    = "SqlAssessment_CL"
+  retention_in_days       = 30
+  total_retention_in_days = 30
 
-#       supportedCapabilities = {
-#         acceleratedNetwork = true
-#         architecture = "x64"
-#         diskControllerTypes = "NVMe"
-#       }
-#     }
-#   })
+  # depends_on = [ azurerm_log_analytics_workspace.workspace ]
+}
+
+resource "azurerm_monitor_data_collection_endpoint" "dce" {
+  name                 = "${var.location}-DCE-1"    
+  location             = azurerm_resource_group.rg.location
+  resource_group_name  = azurerm_resource_group.rg.name
+  kind                 = "Windows"
+}
+
+resource "azurerm_monitor_data_collection_rule" "dcr" {
+  name                 = "${azurerm_log_analytics_workspace.workspace.workspace_id}_${var.location}_DCR_1"
+  location             = azurerm_resource_group.rg.location
+  resource_group_name  = azurerm_resource_group.rg.name
+
+  data_collection_endpoint_id = azurerm_monitor_data_collection_endpoint.dce.id
+
+  stream_declaration {
+    stream_name = "Custom-SqlAssessment_CL"
+
+    column {
+      name = "TimeGenerated"
+      type = "datetime"
+    }
+    column {
+      name = "RawData"
+      type = "string"
+    }
+  }
+
+  data_sources {
+    log_file {
+      name          = "Custom-SqlAssessment_CL"
+      streams       = ["Custom-SqlAssessment_CL"]
+      format        = "text"
+      file_patterns = ["C:\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\Microsoft SQL Server IaaS Agent\\Assessment\\*.csv"]
+      settings {
+        text {
+          record_start_timestamp_format = "ISO 8601"
+        }
+      }
+    }
+  }
+
+  data_flow {
+    streams      = ["Custom-SqlAssessment_CL"]
+    destinations = [azurerm_log_analytics_workspace.workspace.name]
+    transform_kql = "source"
+    output_stream = "Custom-SqlAssessment_CL"
+  }
+
+  destinations {
+    log_analytics {
+      # workspace_resource_id = var.log_analytics_workspace_id
+      workspace_resource_id = azurerm_log_analytics_workspace.workspace.id
+      name                  = azurerm_log_analytics_workspace.workspace.name
+    }
+  }
+
+  # depends_on = [ azurerm_log_analytics_workspace_table.sqlbpa ]
+}
+
+# # Associate to a Data Collection Rule
+# resource "azurerm_monitor_data_collection_rule_association" "dcea" {
+#   name                        = "configurationAccessEndpoint"
+#   target_resource_id          = azurerm_windows_virtual_machine.vm.id
+#   data_collection_endpoint_id = azurerm_monitor_data_collection_endpoint.dce.id
+#   # description             = "example"
+# }
+
+# Associate to a Data Collection Rule
+resource "azurerm_monitor_data_collection_rule_association" "dcra" {
+  name                    = "${azurerm_log_analytics_workspace.workspace.workspace_id}_${var.location}_DCRA_1"
+  target_resource_id      = azurerm_windows_virtual_machine.vm.id
+  data_collection_rule_id = azurerm_monitor_data_collection_rule.dcr.id
+  description             = "Association of data collection rule. Deleting this association will break the data collection for this SQL VM."
+}
+
+# resource "azurerm_key_vault" "kv" {
+#   name                = "${var.base_name}-kv"
+#   resource_group_name = azurerm_resource_group.rg.name
+#   location            = azurerm_resource_group.rg.location
+
+#   tenant_id           = data.azurerm_client_config.current.tenant_id
+#   sku_name            = "standard"
+
+#   enable_rbac_authorization = true
+# }
+
+# # TODO: Create an App Registration for the Key Vault access
+
+# # Make the current Terraform user (whoever is runnign this script) a Key Vault Administrator so they can create secrets
+# resource "azurerm_role_assignment" "kv_admin_role" {
+#   role_definition_name = "Key Vault Administrator"
+#   scope                = azurerm_key_vault.kv.id
+#   principal_id         = azurerm_service_principal.sp.id
 # }
